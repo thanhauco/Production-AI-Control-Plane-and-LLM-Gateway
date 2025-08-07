@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aicp"
+version = "0.1.0"
+description = "Production AI Control Plane: LLM Gateway + ML Pipeline Orchestrator"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.24.1",
+    "pydantic>=2.0.0",
+    "structlog>=23.1.0",
+    "prometheus-client>=0.17.1",
+    "pyyaml>=6.0",
+    "typer>=0.9.0",
+    "rich>=13.4.2",
+    "opentelemetry-api>=1.19.0",
+    "opentelemetry-sdk>=1.19.0",
+]
+
+[project.scripts]
+aicp = "aicp.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
