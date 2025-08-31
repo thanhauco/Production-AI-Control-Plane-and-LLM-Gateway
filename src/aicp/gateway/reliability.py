@@ -26,7 +26,7 @@ class CircuitBreaker:
 
     def record_success(self):
         if self.state == "HALF_OPEN":
-            logger.info("circuit_breaker_recovered", breaker=self.name)
+            logger.info("circuit_breaker_recovered", breaker=self.name, state=self.state)
         self.failures = 0
         self.state = "CLOSED"
         self.last_failure_time = None
@@ -36,7 +36,7 @@ class CircuitBreaker:
         self.last_failure_time = time.time()
         if self.failures >= self.failure_threshold:
             self.state = "OPEN"
-            logger.warn("circuit_breaker_opened", breaker=self.name, failures=self.failures)
+            logger.warn("circuit_breaker_opened", breaker=self.name, state=self.state, failures=self.failures)
 
     def can_execute(self) -> bool:
         if self.state == "CLOSED":
@@ -45,7 +45,7 @@ class CircuitBreaker:
         if self.state == "OPEN":
             if time.time() - self.last_failure_time > self.recovery_timeout:
                 self.state = "HALF_OPEN"
-                logger.info("circuit_breaker_half_open", breaker=self.name)
+                logger.info("circuit_breaker_half_open", breaker=self.name, state=self.state)
                 return True
             return False
         
