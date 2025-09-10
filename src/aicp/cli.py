@@ -137,7 +137,7 @@ def promote_model(
     registry = ModelRegistry()
     try:
         v = registry.promote(name, version)
-        console.print(f"[bold green]Promoted {name} v{v.version} to production![/bold green]")
+        console.print(f"[bold green]Promoted {name} {v.version} to production![/bold green]")
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
 
