@@ -3,38 +3,62 @@ import functools
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Type
 from .models import PipelineRun, StageResult, StageStatus
+from .validation import ValidationGate
 from datetime import datetime
 import structlog
 
 logger = structlog.get_logger()
 
 class Stage:
-    def __init__(self, func: Callable, name: Optional[str] = None, depends_on: Optional[List[str]] = None):
+    def __init__(
+        self, 
+        func: Callable, 
+        name: Optional[str] = None, 
+        depends_on: Optional[List[str]] = None,
+        gate: Optional[ValidationGate] = None,
+        retries: int = 0
+    ):
         self.func = func
         self.name = name or func.__name__
         self.depends_on = depends_on or []
+        self.gate = gate
+        self.retries = retries
 
     async def run(self, context: Dict[str, Any]) -> StageResult:
         result = StageResult(stage_id=self.name, status=StageStatus.RUNNING)
-        try:
-            # Inject context variables as arguments if they match
-            sig = inspect.signature(self.func)
-            kwargs = {k: context[k] for k in sig.parameters if k in context}
-            
-            if asyncio.iscoroutinefunction(self.func):
-                output = await self.func(**kwargs)
-            else:
-                output = self.func(**kwargs)
-            
-            result.output = output
-            result.status = StageStatus.COMPLETED
-        except Exception as e:
-            logger.error("stage_failed", stage=self.name, error=str(e))
-            result.error = str(e)
-            result.status = StageStatus.FAILED
-        finally:
-            result.end_time = datetime.now()
+        last_error = None
         
+        for attempt in range(self.retries + 1):
+            try:
+                if attempt > 0:
+                    logger.info("retrying_stage", stage=self.name, attempt=attempt)
+                
+                # Inject context variables as arguments if they match
+                sig = inspect.signature(self.func)
+                kwargs = {k: context[k] for k in sig.parameters if k in context}
+                
+                if asyncio.iscoroutinefunction(self.func):
+                    output = await self.func(**kwargs)
+                else:
+                    output = self.func(**kwargs)
+                
+                # Run validation gate if present
+                if self.gate and not self.gate.validate(output):
+                    raise ValueError(f"Validation failed at gate: {self.gate.name}")
+
+                result.output = output
+                result.status = StageStatus.COMPLETED
+                result.end_time = datetime.now()
+                return result
+            except Exception as e:
+                logger.error("stage_failed", stage=self.name, error=str(e), attempt=attempt)
+                last_error = e
+                if attempt < self.retries:
+                    await asyncio.sleep(1.0 * (2 ** attempt)) # Backoff
+
+        result.error = str(last_error)
+        result.status = StageStatus.FAILED
+        result.end_time = datetime.now()
         return result
 
 class Pipeline:
@@ -91,9 +115,14 @@ class Pipeline:
         return run
 
 # Decorators
-def stage(name: Optional[str] = None, depends_on: Optional[List[str]] = None):
+def stage(
+    name: Optional[str] = None, 
+    depends_on: Optional[List[str]] = None,
+    gate: Optional[ValidationGate] = None,
+    retries: int = 0
+):
     def decorator(func):
-        return Stage(func, name=name, depends_on=depends_on)
+        return Stage(func, name=name, depends_on=depends_on, gate=gate, retries=retries)
     return decorator
 
 def pipeline(name: str):
