@@ -2,6 +2,7 @@ from typing import List, Optional
 from .providers.base import LLMProvider, CompletionRequest, CompletionResponse
 from .reliability import ReliabilityLayer
 from .middleware import Middleware, MiddlewarePipeline
+from ..observability.tracing import traced
 
 class LLMGateway:
     def __init__(
@@ -13,6 +14,7 @@ class LLMGateway:
         self.reliability = ReliabilityLayer(providers, max_retries=max_retries)
         self.pipeline = MiddlewarePipeline(middlewares or [])
 
+    @traced(name="llm_gateway_completion")
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         # 1. Run pre-processing middleware (Security, PII, etc.)
         processed_request = await self.pipeline.run_pre(request)
