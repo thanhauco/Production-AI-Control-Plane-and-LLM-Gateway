@@ -4,6 +4,7 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Type
 from .models import PipelineRun, StageResult, StageStatus
 from .validation import ValidationGate
+from ..observability.tracing import traced
 from datetime import datetime
 import structlog
 
@@ -24,6 +25,7 @@ class Stage:
         self.gate = gate
         self.retries = retries
 
+    @traced(name="pipeline_stage_execution")
     async def run(self, context: Dict[str, Any]) -> StageResult:
         result = StageResult(stage_id=self.name, status=StageStatus.RUNNING)
         last_error = None
@@ -69,6 +71,7 @@ class Pipeline:
     def add_stage(self, stage: Stage):
         self.stages[stage.name] = stage
 
+    @traced(name="pipeline_execution")
     async def run(self, initial_context: Optional[Dict[str, Any]] = None) -> PipelineRun:
         run = PipelineRun(pipeline_name=self.name)
         context = (initial_context or {}).copy()
