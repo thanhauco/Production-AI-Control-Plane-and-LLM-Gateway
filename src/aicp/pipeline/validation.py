@@ -23,9 +23,9 @@ class ValidationGate:
         if self.model:
             try:
                 if isinstance(data, dict):
-                    self.model(**data)
+                    data = self.model(**data)
                 else:
-                    self.model.model_validate(data)
+                    data = self.model.model_validate(data)
             except (ValidationError, TypeError) as e:
                 logger.error("validation_gate_failed", gate=self.name, error=str(e))
                 return False
