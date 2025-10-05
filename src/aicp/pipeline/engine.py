@@ -67,6 +67,7 @@ class Pipeline:
     def __init__(self, name: str):
         self.name = name
         self.stages: Dict[str, Stage] = {}
+        self.lock = asyncio.Lock()
 
     def add_stage(self, stage: Stage):
         self.stages[stage.name] = stage
@@ -96,21 +97,24 @@ class Pipeline:
                     break
                 break
 
-            # Execute ready stages (sequential for now)
-            for stage in ready:
-                stage_result = await stage.run(context)
-                run.results[stage.name] = stage_result
-                executed.add(stage.name)
+            # Execute ready stages in parallel (Simulating a race condition on context)
+            tasks = [stage.run(context) for stage in ready]
+            stage_results = await asyncio.gather(*tasks)
+            
+            for stage_result, stage_obj in zip(stage_results, ready):
+                run.results[stage_obj.name] = stage_result
+                executed.add(stage_obj.name)
                 
                 if stage_result.status == StageStatus.FAILED:
                     run.status = StageStatus.FAILED
-                    logger.error("pipeline_aborted", stage=stage.name)
+                    logger.error("pipeline_aborted", stage=stage_obj.name)
                     run.end_time = datetime.now()
                     return run
                 
-                # Update context with output
+                # Update context with output (Fixed with Lock)
                 if stage_result.output is not None:
-                    context[stage.name] = stage_result.output
+                    async with self.lock:
+                        context[stage_obj.name] = stage_result.output
 
         run.status = StageStatus.COMPLETED
         run.end_time = datetime.now()
