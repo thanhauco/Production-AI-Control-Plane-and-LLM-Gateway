@@ -51,7 +51,7 @@ class OpenAIProvider(LLMProvider):
 
             data = response.json()
             choice = data["choices"][0]
-            usage_data = data["usage"]
+            usage_data = data.get("usage", {})
 
             return CompletionResponse(
                 id=data["id"],
@@ -59,9 +59,9 @@ class OpenAIProvider(LLMProvider):
                 content=choice["message"]["content"],
                 role=Role(choice["message"]["role"]),
                 usage=Usage(
-                    prompt_tokens=usage_data["prompt_tokens"],
-                    completion_tokens=usage_data["completion_tokens"],
-                    total_tokens=usage_data["total_tokens"]
+                    prompt_tokens=usage_data.get("prompt_tokens", 0),
+                    completion_tokens=usage_data.get("completion_tokens", 0),
+                    total_tokens=usage_data.get("total_tokens", 0)
                 ),
                 finish_reason=choice.get("finish_reason"),
                 provider_metadata={"system_fingerprint": data.get("system_fingerprint")}
