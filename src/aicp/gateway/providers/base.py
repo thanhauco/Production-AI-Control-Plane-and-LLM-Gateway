@@ -33,6 +33,7 @@ class CompletionResponse(BaseModel):
     content: str
     role: Role = Role.ASSISTANT
     usage: Usage
+    cost: float = 0.0
     finish_reason: Optional[str] = None
     provider_metadata: Dict[str, Any] = Field(default_factory=dict)
 
