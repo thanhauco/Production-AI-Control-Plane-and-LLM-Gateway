@@ -22,7 +22,25 @@ class LLMGateway:
         # 2. Execute with reliability patterns (Retries, Circuit Breakers, Fallbacks)
         response = await self.reliability.execute_with_fallback(processed_request)
         
-        # 3. Run post-processing middleware
+        # 3. Calculate estimated cost
+        response.cost = self._calculate_cost(response.model, response.usage)
+        
+        # 4. Run post-processing middleware
         final_response = await self.pipeline.run_post(response)
         
         return final_response
+
+    def _calculate_cost(self, model: str, usage: Any) -> float:
+        # Simplified internal pricing table (price per 1k tokens)
+        pricing = {
+            "gpt-4": {"prompt": 0.03, "completion": 0.06},
+            "gpt-3.5-turbo": {"prompt": 0.0015, "completion": 0.002},
+            "gemini-pro": {"prompt": 0.000125, "completion": 0.000375}
+        }
+        
+        base_model = next((k for k in pricing if k in model), "gpt-3.5-turbo")
+        rates = pricing[base_model]
+        
+        cost = (usage.prompt_tokens / 1000 * rates["prompt"]) + \
+               (usage.completion_tokens / 1000 * rates["completion"])
+        return round(cost, 6)
