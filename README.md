@@ -47,3 +47,7 @@ src/aicp/
 ├── observability/ # Logging, metrics, and tracing
 └── cli.py         # Command-line interface
 ```
+
+## Project Evolution
+
+This project follows a rigorous engineering lifecycle. For a detailed history of feature development, security hardening, and reliability improvements (including simulated production bug fixes), please see the [CHANGELOG.md](./CHANGELOG.md).
